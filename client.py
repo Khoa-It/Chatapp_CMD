@@ -1,9 +1,15 @@
+import os
+import requests
+import zipfile
+import sys
 import socket
 import threading
 import subprocess
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
-import asyncio
+
+GITHUB_RELEASE_URL = "https://github.com/Khoa-It/Chatapp_CMD/releases/latest/download/Chat_CMD.zip"
+
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ip_server = input("IP Server: ")
 port_server = int(input("Port: "))
@@ -18,6 +24,38 @@ client.send(username.encode())
 #     # Hoặc dùng Toast Notification của Win10
 #     ps_script = f'$notif = New-Object -ComObject WScript.Shell; $notif.Popup("{msg}", 3, "Chat App", 64)'
 #     subprocess.Popen(["powershell", "-Command", ps_script], creationflags=subprocess.CREATE_NO_WINDOW)
+
+def update_from_github():
+    try:
+        print("Checking for updates...")
+        app_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+        zip_path = os.path.join(app_dir, "update.zip")
+        
+        response = requests.get(GITHUB_RELEASE_URL, stream=True)
+        response.raise_for_status()
+        with open(zip_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        current_file = sys.argv[0]
+        updater_script = os.path.join(app_dir, "finish_update.bat")
+        
+        with open(updater_script, "w") as f:
+            f.write(f"""
+            @echo off
+            timeout /t 2 /nobreak > nul
+            powershell Expand-Archive -Path "{zip_path}" -DestinationPath "{app_dir}" -Force
+            del "{zip_path}"
+            start "" "{current_file}"
+            del "%~f0"
+            """)
+
+        subprocess.Popen([updater_script], shell=True)
+        print("Update downloaded. Restarting...")
+        os._exit(0) 
+
+    except Exception as e:
+        print(f"Update failed: {e}")
 
 def trigger_notification(message):
     # Gọi file exe chạy ngầm hoàn toàn
@@ -45,7 +83,17 @@ def receive():
 session = PromptSession()
 
 def send_message():
-    msg = session.prompt("You: ")
+    # Sử dụng session.prompt để lấy tin nhắn từ người dùng
+    msg = session.prompt(f"{username}: ") 
+
+    # Kiểm tra nếu người dùng gõ lệnh /update
+    if msg.strip().lower() == "/update":
+        with patch_stdout():
+            print("\n[Hệ thống] Đang kiểm tra và tải bản cập nhật...")
+        update_from_github() # Gọi hàm cập nhật của bạn
+        return # Sau khi gọi update, hàm này sẽ thoát (hoặc app sẽ đóng để cập nhật)
+
+    # Nếu không phải lệnh, gửi tin nhắn đi như bình thường
     client.send(msg.encode())
 
 threading.Thread(target=receive, daemon= True).start()
