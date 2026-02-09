@@ -13,7 +13,7 @@ def main():
     toaster.show_toast(
         "Chat App",
         msg,
-        duration=5*60,
+        duration=5,
         icon_path=None # Bạn có thể thêm file .ico vào đây
     )
 
