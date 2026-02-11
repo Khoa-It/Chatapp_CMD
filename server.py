@@ -12,8 +12,20 @@ print("server running...")
 
 def handle_clients(client):
     try:
-        username = client.recv(1024).decode()
+       
+        # Nhận dữ liệu định danh ban đầu
+        data = client.recv(1024).decode().strip()
+        
+        # Kiểm tra nếu là request HTTP (thường bắt đầu bằng GET hoặc POST) 
+        # hoặc nếu dữ liệu quá dài/không đúng định dạng bạn muốn
+        if data.startswith("GET") or data.startswith("POST") or len(data) > 20:
+            print(f"[CẢNH BÁO] Chặn kết nối nghi vấn từ Bot.")
+            client.close()
+            return
+
+        username = data
         clients[client] = username
+
         broadcast(f'{username} joined'.encode(),client)
         while True:
             msg = client.recv(1024).decode()
