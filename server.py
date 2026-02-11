@@ -17,8 +17,13 @@ def handle_clients(client):
         broadcast(f'{username} joined'.encode(),client)
         while True:
             msg = client.recv(1024).decode()
+            
             if not msg:
                 break
+            
+            if msg == "p@i@n@g":
+                continue
+
             broadcast(f"[{username}]: {msg}".encode(), client)
 
     except :

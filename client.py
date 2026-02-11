@@ -5,25 +5,49 @@ import sys
 import socket
 import threading
 import subprocess
+import time
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 
 GITHUB_RELEASE_URL = "https://github.com/Khoa-It/Chatapp_CMD/releases/latest/download/Chat_CMD.zip"
 
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ip_server = input("IP Server: ")
 port_server = int(input("Port: "))
-client.connect((ip_server, port_server))
 
 
-username = input("Enter your name: ")
-client.send(username.encode())
+
 
 # def notify_windows(msg):
 #     code = f"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('{msg}')"
 #     # Hoặc dùng Toast Notification của Win10
 #     ps_script = f'$notif = New-Object -ComObject WScript.Shell; $notif.Popup("{msg}", 3, "Chat App", 64)'
 #     subprocess.Popen(["powershell", "-Command", ps_script], creationflags=subprocess.CREATE_NO_WINDOW)
+
+def maintain_connection():
+    global client
+    while True:
+        if client is None:
+            client = connect_to_server(ip_server, port_server)
+        else:
+            try:
+                # Gửi một tin nhắn "ping" nhỏ để check
+                client.sendall(b'p@i@n@g')
+            except:
+                print("Kết nối bị ngắt, đang thử lại...")
+                client = connect_to_server(ip_server, port_server)
+        
+        time.sleep(5) # Đợi 5 giây rồi check tiếp
+
+
+def connect_to_server(ip, port):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        client.connect((ip, port))
+        print("Đã kết nối thành công!")
+        return client
+    except Exception as e:
+        print(f"Kết nối thất bại: {e}")
+        return None
 
 def update_from_github():
     try:
@@ -80,6 +104,11 @@ def receive():
         except:
             break
 
+
+username = input("Enter your name: ")
+client = connect_to_server(ip_server, port_server)
+
+client.send(username.encode())
 session = PromptSession()
 
 def send_message():
@@ -97,6 +126,7 @@ def send_message():
     client.send(msg.encode())
 
 threading.Thread(target=receive, daemon= True).start()
+threading.Thread(target=maintain_connection, daemon=True).start()
 
 while True:
    send_message() 
