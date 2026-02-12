@@ -1,6 +1,10 @@
+import warnings
+# Tắt tất cả các cảnh báo từ thư viện requests/urllib3
+warnings.filterwarnings("ignore", category=UserWarning, module='requests')
+warnings.filterwarnings("ignore", message=".*urllib3.*")
+
 import os
 import requests
-import zipfile
 import sys
 import socket
 import threading
@@ -41,10 +45,10 @@ def connect_to_server(ip, port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         client.connect((ip, port))
-        print("Đã kết nối thành công!")
+        print("Connect successfull!")
         return client
     except Exception as e:
-        print(f"Kết nối thất bại: {e}")
+        print(f"Connect failed: {e}")
         return None
 
 def update_from_github():
@@ -81,9 +85,10 @@ def update_from_github():
 
 def trigger_notification(message):
     # Gọi file exe chạy ngầm hoàn toàn
+    clean_msg = re.sub(r'<[^>]+>', '', message)
     try:
         subprocess.Popen(
-            ["notif.exe", message],
+            ["notif.exe", clean_msg],
             creationflags=subprocess.CREATE_NO_WINDOW
         )
     except Exception:
@@ -117,7 +122,7 @@ while True:
         print(f"Choose color successfull: {user_color}")
         break # Thoát vòng lặp nếu màu hợp lệ
     else:
-        print("Enter valid color !")
+        print("Enter valid color!")
 
 
 client = connect_to_server(ip_server, port_server)
@@ -133,7 +138,7 @@ def send_message():
     # Kiểm tra nếu người dùng gõ lệnh /update
     if msg.strip().lower() == "/update":
         with patch_stdout():
-            print("\n[Hệ thống] Đang kiểm tra và tải bản cập nhật...")
+            print("\n[System] Checking latest version...")
         update_from_github() # Gọi hàm cập nhật của bạn
         return # Sau khi gọi update, hàm này sẽ thoát (hoặc app sẽ đóng để cập nhật)
 
