@@ -6,16 +6,14 @@ import socket
 import threading
 import subprocess
 import time
-from prompt_toolkit import PromptSession
+import re
+from prompt_toolkit import PromptSession, print_formatted_text, HTML
 from prompt_toolkit.patch_stdout import patch_stdout
 
 GITHUB_RELEASE_URL = "https://github.com/Khoa-It/Chatapp_CMD/releases/latest/download/Chat_CMD.zip"
 
 ip_server = input("IP Server: ")
 port_server = int(input("Port: "))
-
-
-
 
 # def notify_windows(msg):
 #     code = f"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('{msg}')"
@@ -88,8 +86,13 @@ def trigger_notification(message):
             ["notif.exe", message],
             creationflags=subprocess.CREATE_NO_WINDOW
         )
-    except Exception as e:
-        print(f"Không tìm thấy file notif.exe: {e}")
+    except Exception:
+        pass
+
+def is_valid_hex_color(color_code):
+    # Regex kiểm tra định dạng #RRGGBB (ví dụ: #FF5733)
+    match = re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', color_code)
+    return match is not None
 
 def receive():
     while True:
@@ -97,7 +100,7 @@ def receive():
             msg = client.recv(1024).decode()
             if msg:
                 with patch_stdout():
-                    print(msg)
+                    print_formatted_text(HTML(msg))
 
                 # notify_windows(msg)
                 trigger_notification(msg)
@@ -105,15 +108,27 @@ def receive():
             break
 
 
+
 username = input("Enter your name: ")
+while True:
+    user_color = input("Enter your color (ví dụ #FF5733): ").strip()
+    
+    if is_valid_hex_color(user_color):
+        print(f"Choose color successfull: {user_color}")
+        break # Thoát vòng lặp nếu màu hợp lệ
+    else:
+        print("Enter valid color !")
+
+
 client = connect_to_server(ip_server, port_server)
 
-client.send(username.encode())
+client.send(f"{username}|{user_color}".encode())
 session = PromptSession()
 
 def send_message():
     # Sử dụng session.prompt để lấy tin nhắn từ người dùng
-    msg = session.prompt(f"{username}: ") 
+    prompt_label = HTML(f'<style fg="{user_color}">[{username}]: </style>')
+    msg = session.prompt(prompt_label)
 
     # Kiểm tra nếu người dùng gõ lệnh /update
     if msg.strip().lower() == "/update":

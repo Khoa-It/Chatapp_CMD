@@ -13,20 +13,19 @@ print("server running...")
 def handle_clients(client):
     try:
        
-        # Nhận dữ liệu định danh ban đầu
         data = client.recv(1024).decode().strip()
         
-        # Kiểm tra nếu là request HTTP (thường bắt đầu bằng GET hoặc POST) 
-        # hoặc nếu dữ liệu quá dài/không đúng định dạng bạn muốn
         if data.startswith("GET") or data.startswith("POST") or len(data) > 20:
-            print(f"[CẢNH BÁO] Chặn kết nối nghi vấn từ Bot.")
+            print(f"[Warning] Block Bot.")
             client.close()
             return
 
-        username = data
-        clients[client] = username
+        username, user_color = data.split("|", 1)
+        clients[client] = {"name": username, "color": user_color}
 
-        broadcast(f'{username} joined'.encode(),client)
+        print(f"[System] {username} connected with color: {user_color}")
+        broadcast(f'<b>{username} joined</b>'.encode(), client)
+
         while True:
             msg = client.recv(1024).decode()
             
@@ -36,23 +35,30 @@ def handle_clients(client):
             if msg == "p@i@n@g":
                 continue
 
-            broadcast(f"[{username}]: {msg}".encode(), client)
-
+            color_msg = f'<style fg="{user_color}">[{username}]:</style> {msg}'
+            broadcast(color_msg.encode(), client)
     except :
         pass
 
     finally:
-        username = clients.get(client, "unknown")
-        clients.pop(client, None)
+        user_info = clients.get(client, {"name": "unknown"})
+        username = user_info["name"]
+        
+        if client in clients:
+            clients.pop(client)
+            
         client.close()
-        broadcast(f"{username} leave".encode(), client)
+        broadcast(f'<b>{username} leave</b>'.encode(), client)
 
    
 def broadcast(message, sender):
-    for c in clients:
-        if c!= sender:
-            c.send(message)
-
+    for c in list(clients.keys()):
+        if c != sender:
+            try:
+                c.send(message)
+            except:
+                c.close()
+                clients.pop(c, None)
 
 while True:
     client, addr = server.accept()
